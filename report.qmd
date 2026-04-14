@@ -1,0 +1,402 @@
+---
+title: "Left Behind: The Silent Crisis of Early Childhood Neglect"
+subtitle: "A UNICEF Data Report on Child Supervision and Access to Early Education"
+author: "UNICEF Data Analysis Division"
+date: today
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+    theme: flatly
+    toc: true
+    toc-depth: 3
+    toc-title: "Contents"
+    toc-location: left
+    smooth-scroll: true
+    highlight-style: github
+    fig-align: center
+    css: |
+      body { font-family: 'Georgia', serif; color: #2c2c2c; background-color: #fafaf8; }
+      h1, h2, h3 { font-family: 'Helvetica Neue', sans-serif; color: #1a4f6e; }
+      .lead { font-size: 1.15em; color: #4a4a4a; line-height: 1.8; }
+      .callout { border-left: 4px solid #5ba4cf; background: #f0f7ff; padding: 1em 1.4em; border-radius: 4px; margin: 1.5em 0; }
+      .stat-box { background: #f5f9fc; border: 1px solid #d0e4f0; border-radius: 8px; padding: 1em; text-align: center; }
+execute:
+  warning: false
+  message: false
+---
+
+```{python}
+#| label: setup
+#| echo: false
+
+import polars as pl
+import pandas as pd
+import numpy as np
+from plotnine import *
+import warnings
+warnings.filterwarnings("ignore")
+
+# ── Load data ──────────────────────────────────────────────────────────────────
+ind1 = pl.read_csv("unicef_indicator_1.csv")
+ind2 = pl.read_csv("unicef_indicator_2.csv")
+meta = pl.read_csv("unicef_metadata.csv")
+```
+
+---
+
+## The Invisible Emergency
+
+::: {.lead}
+Every day, millions of children under the age of five wake up in a world where **no responsible adult is watching over them**. Left alone — or worse, in the care of another young child — they face risks that no infant should ever know. Meanwhile, across the same globe, countless toddlers are denied access to **early childhood education programmes** that could set the course of their entire lives.
+
+This report draws on UNICEF data collected across more than 100 countries to illuminate two deeply connected crises: the **widespread unsupervised care of young children**, and the **unequal access to early childhood education (ECE)**. Together, they reveal a world that is failing its youngest and most vulnerable members — not through malice, but through poverty, inequality, and neglect.
+:::
+
+> *"The first five years have so much to do with how the next 80 turn out."*
+> — Bill Gates
+
+---
+
+## Understanding the Data
+
+This analysis draws on three UNICEF datasets:
+
+- **Indicator 1** — Percentage of children under age 5 left alone or under the supervision of a child younger than 10, for more than one hour, at least once in the past week
+- **Indicator 2** — Percentage of children aged 36–59 months attending an early childhood education programme
+- **Metadata** — Country-level economic and demographic indicators including GDP per capita, life expectancy, and birth rate
+
+Together, these datasets span **over 125 countries** and multiple decades, offering a powerful lens through which to examine child welfare globally.
+
+---
+
+## Where Are Children Being Left Alone?
+
+```{python}
+#| label: fig-world-map
+#| fig-cap: "Share of children under 5 left unsupervised for 1+ hour per week, by country (most recent year)"
+#| fig-width: 11
+#| fig-height: 5.5
+
+# Process UNICEF Indicator 1 for the map
+map_data = (
+    ind1
+    .filter(pl.col("sex") == "Total")
+    .sort("time_period", descending=True)
+    .unique(subset=["alpha_3_code"], keep="first")
+    .select(["alpha_3_code", "obs_value"])
+    .rename({"obs_value": "unsupervised_pct"})
+)
+
+# Load the local world map file
+import geopandas as gpd
+world = gpd.read_file("world.geojson")
+
+# Standardize column name based on diagnostic output
+possible_iso_cols = ['ISO3166-1-Alpha-3', 'ISO_A3', 'iso_a3', 'id', 'ISO_A3_EH', 'GU_A3', 'adm0_a3']
+found = False
+for col in possible_iso_cols:
+    if col in world.columns:
+        world = world.rename(columns={col: 'alpha_3_code'})
+        found = True
+        break
+
+map_pd = map_data.to_pandas()
+world_merged = world.merge(map_pd, on="alpha_3_code", how="left")
+
+# Preparation for Plotnine map
+from shapely.geometry import mapping
+import json
+import pandas as pd
+
+def gdf_to_plotnine(gdf, id_col="alpha_3_code"):
+    rows = []
+    for _, row in gdf.iterrows():
+        if row.geometry is None: continue
+        geom = row.geometry
+        if geom.geom_type == "Polygon":
+            polys = [geom]
+        elif geom.geom_type == "MultiPolygon":
+            polys = list(geom.geoms)
+        else:
+            continue
+        for pi, poly in enumerate(polys):
+            coords = list(poly.exterior.coords)
+            for x, y in coords:
+                rows.append({"x": x, "y": y, "group": f"{row[id_col]}_{pi}", "val": row["unsupervised_pct"]})
+    return pd.DataFrame(rows)
+
+map_df_plot = gdf_to_plotnine(world_merged)
+
+from plotnine import *
+p_map = (
+    ggplot(map_df_plot, aes(x="x", y="y", group="group", fill="val"))
+    + geom_polygon(color="white", size=0.1)
+    + scale_fill_gradient(low="#e0f3db", high="#084081", na_value="#eeeeee", name="% Unsupervised")
+    + theme_void()
+    + labs(title="Children Left Unsupervised (Indicator 1)")
+)
+p_map.draw()
+```
+
+::: {.callout}
+**Key observation:** Sub-Saharan Africa carries the heaviest burden. Countries like **Guinea-Bissau (70.1%)**, **Chad (64.2%)**, and the **Democratic Republic of Congo (46.6%)** report that nearly half or more of all young children are left without adequate supervision each week. This is not a marginal phenomenon — it is a structural reality of poverty.
+:::
+
+---
+
+## The Countries Failing Their Youngest
+
+```{python}
+#| label: fig-bar-chart
+#| fig-cap: "Top 20 countries by percentage of unsupervised children under 5 (most recent year, Total)"
+#| fig-width: 10
+#| fig-height: 6.5
+
+bar_data = (
+    ind1
+    .filter(pl.col("sex") == "Total")
+    .sort("time_period", descending=True)
+    .unique(subset=["country"], keep="first")
+    .sort("obs_value", descending=True)
+    .head(20)
+    .to_pandas()
+)
+
+bar_data["country"] = pd.Categorical(
+    bar_data["country"],
+    categories=bar_data.sort_values("obs_value")["country"].tolist(),
+    ordered=True
+)
+
+p_bar = (
+    ggplot(bar_data, aes(x="country", y="obs_value", fill="obs_value"))
+    + geom_col(width=0.7, show_legend=False)
+    + geom_text(
+        aes(label="obs_value.round(1).astype(str) + '%'"),
+        ha="left", nudge_y=0.8, size=8, color="#444444"
+    )
+    + scale_fill_gradientn(
+        colors=["#bdd7ee", "#5ba4cf", "#1a6fa8", "#08306b"]
+    )
+    + coord_flip()
+    + scale_y_continuous(limits=[0, 82], expand=(0, 0))
+    + labs(
+        title="Top 20 Countries: Children Under 5 Left Unsupervised",
+        subtitle="Percentage left alone or with a child under 10 for 1+ hour per week",
+        x=None,
+        y="% of Children Unsupervised",
+        caption="Source: UNICEF Indicator 1 | Most recent available year per country"
+    )
+    + theme_minimal()
+    + theme(
+        plot_title=element_text(size=13, weight="bold", color="#1a4f6e"),
+        plot_subtitle=element_text(size=9.5, color="#666666"),
+        plot_caption=element_text(size=8, color="#999999"),
+        axis_text_y=element_text(size=9.5),
+        axis_text_x=element_text(size=8.5),
+        panel_grid_major_y=element_blank(),
+        panel_grid_minor_x=element_blank(),
+        panel_grid_major_x=element_line(color="#ebebeb"),
+        figure_size=(10, 6.5),
+        plot_background=element_rect(fill="#fafaf8", color=None),
+    )
+)
+p_bar.draw()
+```
+
+The bar chart paints a stark picture. **All 20 of the highest-ranking countries are in Sub-Saharan Africa or parts of the Middle East** — regions where poverty is most acute and where formal childcare infrastructure is weakest. In Guinea-Bissau, seven out of ten children are left without adequate supervision every single week.
+
+This is not simply a cultural difference. It is the direct consequence of economic precarity: when parents must work long hours with no paid leave, no state-funded childcare, and no extended family nearby, young children are left to fend for themselves.
+
+---
+
+## Education as the Antidote: The ECE Attendance Gap
+
+```{python}
+#| label: fig-scatter
+#| fig-cap: "GDP per capita vs. ECE attendance rate, with linear regression line"
+#| fig-width: 10
+#| fig-height: 6
+
+# Merge indicator 2 (Total) with most recent metadata per country
+ece_total = (
+    ind2
+    .filter(pl.col("sex") == "Total")
+    .sort("time_period", descending=True)
+    .unique(subset=["alpha_3_code"], keep="first")
+    .select(["country", "alpha_3_code", "obs_value"])
+    .rename({"obs_value": "ece_rate"})
+)
+
+meta_recent = (
+    meta
+    .sort("year", descending=True)
+    .unique(subset=["alpha_3_code"], keep="first")
+    .select([
+        "alpha_3_code",
+        "GDP per capita (constant 2015 US$)",
+        "Life expectancy at birth, total (years)"
+    ])
+    .rename({
+        "GDP per capita (constant 2015 US$)": "gdp_per_capita",
+        "Life expectancy at birth, total (years)": "life_expectancy"
+    })
+)
+
+scatter_df = (
+    ece_total
+    .join(meta_recent, on="alpha_3_code", how="inner")
+    .filter(pl.col("gdp_per_capita").is_not_null())
+    .filter(pl.col("ece_rate").is_not_null())
+    .to_pandas()
+)
+
+# Log-transform GDP for better visual spread
+scatter_df["log_gdp"] = np.log10(scatter_df["gdp_per_capita"])
+
+# Label a few notable countries
+label_countries = ["Afghanistan", "Nigeria", "India", "Brazil", "Germany", "China", "Ethiopia", "Uruguay", "United States"]
+scatter_df["label"] = scatter_df["country"].where(scatter_df["country"].isin(label_countries), "")
+
+p_scatter = (
+    ggplot(scatter_df, aes(x="log_gdp", y="ece_rate"))
+    + geom_point(aes(color="life_expectancy"), size=3, alpha=0.75)
+    + geom_smooth(method="lm", color="#1a4f6e", fill="#bdd7ee", alpha=0.25, size=1.2)
+    + geom_text(
+        aes(label="label"),
+        size=7.5, color="#333333", nudge_y=2.5, nudge_x=0.03, ha="left"
+    )
+    + scale_color_gradientn(
+        colors=["#f9c74f", "#43aa8b", "#277da1"],
+        name="Life Expectancy\n(years)"
+    )
+    + scale_x_continuous(
+        breaks=[2, 3, 4, 4.7],
+        labels=["$100", "$1,000", "$10,000", "$50,000"],
+        name="GDP per Capita (log scale)"
+    )
+    + labs(
+        title="Wealthier Countries Give Children a Head Start",
+        subtitle="Higher national income is strongly associated with greater access to early childhood education",
+        y="ECE Attendance Rate (%)",
+        caption="Source: UNICEF Indicator 2 + World Bank Metadata | Each point = one country"
+    )
+    + theme_minimal()
+    + theme(
+        plot_title=element_text(size=13, weight="bold", color="#1a4f6e"),
+        plot_subtitle=element_text(size=9.5, color="#666666"),
+        plot_caption=element_text(size=8, color="#999999"),
+        panel_grid_minor=element_blank(),
+        panel_grid_major=element_line(color="#ebebeb"),
+        figure_size=(10, 6),
+        plot_background=element_rect(fill="#fafaf8", color=None),
+    )
+)
+p_scatter.draw()
+```
+
+::: {.callout}
+**The regression line tells a clear story.** As GDP per capita rises, ECE attendance climbs steeply. Countries like **Afghanistan (GDP ~$378, ECE ~0.9%)** sit at the extreme left, while **Uruguay (GDP ~$17,000, ECE ~90.9%)** occupies the top right. Point colour further shows that **higher life expectancy** — itself a proxy for development — clusters strongly with high ECE rates. Poverty does not just take food off the table; it takes education out of reach.
+:::
+
+---
+
+## A World Changing — But Not Fast Enough
+
+```{python}
+#| label: fig-timeseries
+#| fig-cap: "Life expectancy over time across selected countries (1960–2023)"
+#| fig-width: 11
+#| fig-height: 6
+
+focus_countries = ["Nigeria", "India", "Brazil", "China", "Germany", "United States", "Ethiopia", "Bangladesh"]
+
+ts_df = (
+    meta
+    .filter(pl.col("country").is_in(focus_countries))
+    .filter(pl.col("Life expectancy at birth, total (years)").is_not_null())
+    .select([
+        "country", "year",
+        pl.col("Life expectancy at birth, total (years)").alias("life_expectancy")
+    ])
+    .to_pandas()
+)
+
+# Colour palette — distinct but soft
+country_colors = {
+    "Nigeria":        "#e07b54",
+    "Ethiopia":       "#c9a84c",
+    "Bangladesh":     "#8db87a",
+    "India":          "#5ba4cf",
+    "China":          "#4a7fc1",
+    "Brazil":         "#9b72b0",
+    "Germany":        "#888888",
+    "United States":  "#444444",
+}
+
+# End-of-line labels
+labels_df = (
+    ts_df.sort_values("year")
+         .groupby("country", as_index=False)
+         .last()
+)
+
+p_ts = (
+    ggplot(ts_df, aes(x="year", y="life_expectancy", color="country", group="country"))
+    + geom_line(size=1.1, alpha=0.9)
+    + geom_text(
+        data=labels_df,
+        mapping=aes(x="year", y="life_expectancy", label="country"),
+        nudge_x=0.8, size=7.5, ha="left"
+    )
+    + scale_color_manual(values=country_colors, guide=None)
+    + scale_x_continuous(
+        breaks=[1960, 1970, 1980, 1990, 2000, 2010, 2020],
+        limits=[1960, 2034]
+    )
+    + scale_y_continuous(breaks=range(30, 90, 10))
+    + labs(
+        title="Life Expectancy Has Risen — But the Gap Persists",
+        subtitle="Countries like Ethiopia and Nigeria have made remarkable gains, yet remain far behind wealthier nations",
+        x="Year",
+        y="Life Expectancy at Birth (years)",
+        caption="Source: World Bank via UNICEF Metadata | Selected countries for comparative illustration"
+    )
+    + theme_minimal()
+    + theme(
+        plot_title=element_text(size=13, weight="bold", color="#1a4f6e"),
+        plot_subtitle=element_text(size=9.5, color="#666666"),
+        plot_caption=element_text(size=8, color="#999999"),
+        panel_grid_minor=element_blank(),
+        panel_grid_major=element_line(color="#ebebeb"),
+        figure_size=(11, 6),
+        plot_background=element_rect(fill="#fafaf8", color=None),
+    )
+)
+p_ts.draw()
+```
+
+The time series reveals a **story of progress shadowed by persistent inequality**. Since 1960, life expectancy has risen in every country shown — a testament to advances in medicine, sanitation, and nutrition. Ethiopia climbed from under 40 years in 1960 to over 67 years today. Bangladesh made similarly dramatic gains.
+
+Yet the **gap between nations has not closed**. Germany and the United States hover consistently above 75 years, while Sub-Saharan nations remain 15–20 years behind. Life expectancy is not just a health metric — it reflects the whole ecosystem in which children grow up: the quality of healthcare, food security, education access, and yes, whether a toddler has a responsible adult watching over them.
+
+---
+
+## Conclusions: What the Data Demands
+
+The evidence is unambiguous:
+
+1. **Unsupervised early childhood is concentrated in the world's poorest countries**, particularly Sub-Saharan Africa, where structural poverty leaves parents with no viable childcare options.
+
+2. **Early childhood education attendance is directly tied to national wealth** — not because low-income families value education less, but because they lack the infrastructure and financial means to access it.
+
+3. **Development indicators improve together** — countries with higher GDP per capita show better life expectancy, higher ECE rates, and lower rates of child neglect. Poverty is the common thread.
+
+::: {.callout}
+**The ask is not complicated.** Targeted investment in universal early childhood education, affordable childcare, and social protection for low-income families can break the cycle. The data shows what is possible — **Brazil, Uruguay, and China** have all achieved ECE rates above 85% without being the world's wealthiest nations. Political will, not resources alone, determines a child's first five years.
+:::
+
+---
+
+*Report produced using UNICEF open data. Analysis conducted in Python using Polars and Plotnine. Rendered with Quarto.*
