@@ -1,0 +1,94 @@
+---
+title: "🌍 UNICEF Global Insights Report"
+author: "Kavya Moturu"
+format:
+  html:
+    theme: flatly
+    embed-resources: true
+    code-fold: true
+    toc: true
+    toc-depth: 2
+---
+
+## 🌱 Introduction
+
+Understanding global challenges affecting children is critical for building a better future.  
+This report explores key UNICEF indicators to uncover **patterns, inequalities, and progress** across countries.
+
+---
+
+## 📦 Load Libraries & Data
+
+```{python}
+#| label: load-data
+#| echo: false
+
+import polars as pl
+from plotnine import *
+
+df1 = pl.read_csv("unicef_indicator_1.csv")
+df2 = pl.read_csv("unicef_indicator_2.csv")
+meta = pl.read_csv("unicef_metadata.csv")
+
+df = df1.drop_nulls()
+df = df.filter(pl.col("time_period") >= 2000)
+```
+
+---
+
+## 📊 Bar Chart
+
+```{python}
+df_bar = df.filter(pl.col("time_period") == df["time_period"].max())
+
+(
+    ggplot(df_bar, aes(x="Country", y="Value"))
+    + geom_bar(stat="identity", fill="#a8dadc")
+    + theme_minimal()
+)
+```
+
+---
+
+## 📈 Scatterplot with Regression
+
+```{python}
+(
+    ggplot(df, aes(x="Year", y="Value"))
+    + geom_point()
+    + geom_smooth(method="lm")
+    + theme_minimal()
+)
+```
+
+---
+
+## 📉 Time Series
+
+```{python}
+(
+    ggplot(df, aes(x="Year", y="Value", color="Country"))
+    + geom_line()
+    + theme_minimal()
+)
+```
+
+---
+
+## 🌍 World Map (Basic)
+
+```{python}
+df_map = df.filter(pl.col("time_period") == df["time_period"].max())
+
+(
+    ggplot(df_map, aes(fill="Value"))
+    + geom_tile(aes(x="Country", y=1))
+    + theme_minimal()
+)
+```
+
+---
+
+## 🚀 Conclusion
+
+This report highlights global disparities and trends using UNICEF data.
