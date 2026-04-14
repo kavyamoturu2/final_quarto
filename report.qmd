@@ -1,7 +1,7 @@
 ---
 title: "Left Behind: The Silent Crisis of Early Childhood Neglect"
 subtitle: "A UNICEF Data Report on Child Supervision and Access to Early Education"
-author: "UNICEF Data Analysis Division"
+author: "Kavya Moturu"
 date: today
 format:
   html:
@@ -48,9 +48,9 @@ meta = pl.read_csv("unicef_metadata.csv")
 ## The Invisible Emergency
 
 ::: {.lead}
-Every day, millions of children under the age of five wake up in a world where **no responsible adult is watching over them**. Left alone — or worse, in the care of another young child — they face risks that no infant should ever know. Meanwhile, across the same globe, countless toddlers are denied access to **early childhood education programmes** that could set the course of their entire lives.
+Every day, millions of children under the age of five wake up in a world where **no responsible adult is watching over them**. Left alone or worse, in the care of another young child they face risks that no infant should ever know. Meanwhile, across the same globe, countless toddlers are denied access to **early childhood education programmes** that could set the course of their entire lives.
 
-This report draws on UNICEF data collected across more than 100 countries to illuminate two deeply connected crises: the **widespread unsupervised care of young children**, and the **unequal access to early childhood education (ECE)**. Together, they reveal a world that is failing its youngest and most vulnerable members — not through malice, but through poverty, inequality, and neglect.
+This report draws on UNICEF data collected across more than 100 countries to illuminate two deeply connected crises: the **widespread unsupervised care of young children**, and the **unequal access to early childhood education (ECE)**. Together, they reveal a world that is failing its youngest and most vulnerable members not through malice, but through poverty, inequality, and neglect.
 :::
 
 > *"The first five years have so much to do with how the next 80 turn out."*
@@ -205,7 +205,7 @@ p_bar = (
 p_bar.draw()
 ```
 
-The bar chart paints a stark picture. **All 20 of the highest-ranking countries are in Sub-Saharan Africa or parts of the Middle East** — regions where poverty is most acute and where formal childcare infrastructure is weakest. In Guinea-Bissau, seven out of ten children are left without adequate supervision every single week.
+The bar chart paints a stark picture. **All 20 of the highest-ranking countries are in Sub-Saharan Africa or parts of the Middle East** —regions where poverty is most acute and where formal childcare infrastructure is weakest. In Guinea-Bissau, seven out of ten children are left without adequate supervision every single week.
 
 This is not simply a cultural difference. It is the direct consequence of economic precarity: when parents must work long hours with no paid leave, no state-funded childcare, and no extended family nearby, young children are left to fend for themselves.
 
@@ -297,7 +297,7 @@ p_scatter.draw()
 ```
 
 ::: {.callout}
-**The regression line tells a clear story.** As GDP per capita rises, ECE attendance climbs steeply. Countries like **Afghanistan (GDP ~$378, ECE ~0.9%)** sit at the extreme left, while **Uruguay (GDP ~$17,000, ECE ~90.9%)** occupies the top right. Point colour further shows that **higher life expectancy** — itself a proxy for development — clusters strongly with high ECE rates. Poverty does not just take food off the table; it takes education out of reach.
+**The regression line tells a clear story.** As GDP per capita rises, ECE attendance climbs steeply. Countries like **Afghanistan (GDP ~$378, ECE ~0.9%)** sit at the extreme left, while **Uruguay (GDP ~$17,000, ECE ~90.9%)** occupies the top right. Point colour further shows that **higher life expectancy** itself a proxy for development clusters strongly with high ECE rates. Poverty does not just take food off the table; it takes education out of reach.
 :::
 
 ---
@@ -377,9 +377,9 @@ p_ts = (
 p_ts.draw()
 ```
 
-The time series reveals a **story of progress shadowed by persistent inequality**. Since 1960, life expectancy has risen in every country shown — a testament to advances in medicine, sanitation, and nutrition. Ethiopia climbed from under 40 years in 1960 to over 67 years today. Bangladesh made similarly dramatic gains.
+The time series reveals a **story of progress shadowed by persistent inequality**. Since 1960, life expectancy has risen in every country shown a testament to advances in medicine, sanitation, and nutrition. Ethiopia climbed from under 40 years in 1960 to over 67 years today. Bangladesh made similarly dramatic gains.
 
-Yet the **gap between nations has not closed**. Germany and the United States hover consistently above 75 years, while Sub-Saharan nations remain 15–20 years behind. Life expectancy is not just a health metric — it reflects the whole ecosystem in which children grow up: the quality of healthcare, food security, education access, and yes, whether a toddler has a responsible adult watching over them.
+Yet the **gap between nations has not closed**. Germany and the United States hover consistently above 75 years, while Sub-Saharan nations remain 15–20 years behind. Life expectancy is not just a health metric it reflects the whole ecosystem in which children grow up: the quality of healthcare, food security, education access, and yes, whether a toddler has a responsible adult watching over them.
 
 ---
 
